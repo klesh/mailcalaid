@@ -1,5 +1,5 @@
-from .mailclient import Message
+from .mailclient import Message, MailClient
 from .pop3client import Pop3Client
 from .imapclient import ImapClient
 
-__all__ = ['Message', 'Pop3Client', 'ImapClient']
+__all__ = ['Message', 'MailClient', 'Pop3Client', 'ImapClient']

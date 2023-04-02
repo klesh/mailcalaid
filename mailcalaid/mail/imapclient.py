@@ -26,7 +26,6 @@ class ImapClient(MailClient):
     self.select(self.mailbox)
 
   def close(self):
-    self.flush()
     self.client.close()
 
   @property
