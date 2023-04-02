@@ -65,10 +65,17 @@ class Message:
 
   @cached_property
   def date(self):
-    d = email.utils.parsedate_to_datetime(decode_header(self.message["Date"]))
-    if d.tzinfo is None:
-      d = d.replace(tzinfo=timezone.utc)
-    return d
+    d = self.message["Date"]
+    if not d:
+      return None
+    try:
+      d = email.utils.parsedate_to_datetime(decode_header(d))
+      if d.tzinfo is None:
+        d = d.replace(tzinfo=timezone.utc)
+      return d
+    except Exception as e:
+      logger.warning("failed to parse date %s: %s", d, e)
+      return None
 
 
 def decode_header(header):
@@ -121,7 +128,7 @@ class MailClient(ABC):
   def mark_deleted(self, msg_id: int):
     logger.info("mark message %s as deleted", msg_id)
     if not self.dry_run:
-      self._mark_deleted(msg_id)
+      self._mark_deleted(str(msg_id))
 
   @abstractmethod
   def _flush(self):
@@ -197,3 +204,7 @@ class MailClient(ABC):
       return True
     while batch():
       pass
+
+  def mark_deleted_all(self):
+    for msg_id in range(1, self.total_messages + 1):
+      self.mark_deleted(msg_id)

@@ -13,6 +13,7 @@ class ImapClient(MailClient):
   MSG_HEADER = '(BODY.PEEK[HEADER])'
   MSG_FULL = '(RFC822)'
   client: imaplib.IMAP4
+  mailbox: str = "INBOX"
 
   def open(self):
     if self.ssl:
@@ -22,7 +23,7 @@ class ImapClient(MailClient):
     code, resp = self.client.login(self.user, self.password)
     if code != 'OK':
       raise Exception(resp[0].decode())
-    self.select("INBOX")
+    self.select(self.mailbox)
 
   def close(self):
     self.flush()
@@ -30,7 +31,7 @@ class ImapClient(MailClient):
 
   @property
   def total_messages(self) -> int:
-    return self.select("INBOX")
+    return self.select(self.mailbox)
 
   def list_mailboxes(self) -> Generator[dict, None, None]:
     list_response_pattern = re.compile(
@@ -44,18 +45,18 @@ class ImapClient(MailClient):
       yield mailbox
 
   def select(self, mailbox: str) -> int:
-    code, resp = self.client.select(mailbox)
+    code, resp = self.client.select('"%s"' % mailbox)
     if code != 'OK':
       raise Exception(resp[0].decode())
-    self.selected_mailbox = mailbox
+    self.mailbox = mailbox
     return int(resp[0].decode())
   
   def _fetch_message(self, msg_id:int, headeronly: bool) -> bytes:
     message_parts = self.MSG_HEADER if headeronly else self.MSG_FULL
-    code, resp = self.client.fetch(msg_id, message_parts)
+    code, resp = self.client.fetch(str(msg_id), message_parts)
     if code != 'OK':
         raise Exception(resp[0].decode())
-    logger.info("fetch messags %s, response length: %d", msg_id, len(resp)) 
+    logger.debug("fetch messags %s, response length: %d", msg_id, len(resp)) 
     return resp[0][1]
 
   def search(self, criterion: str):
