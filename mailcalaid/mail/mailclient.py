@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Message:
+  """Message wraps email.message.Message and provides some useful properties
+
+  :param str msg_id: message id
+  :param bytes msg: message bytes
+  """
   msg_id: str
   msg: bytes
 
@@ -92,10 +97,16 @@ def decode_header(header):
 
 
 class MailClient(ABC):
-  # def _fetch_messages(msg_id: int|List[int], msg_id_end: int, headeronly: bool) -> yield (msg_id, msg_bytes)
-  _fetch_messages: Callable[[Union[int,List[int]], int, bool], Generator[Tuple[int, bytes], None, None]] = None
-  # def _fetch_messages(id: int, headeronly: bool) -> msg_bytes
-  _fetch_message: Callable[[int, bool], bytes] = None
+  """Abstract mail client
+
+  :param str host: mail server host
+  :param int port: mail server port
+  :param str user: mail server user
+  :param str password: mail server password
+  :param bool ssl: use ssl when connecting to mail server
+  :param int batch_size: batch size when processing messages
+  :param bool dry_run: dry run mode
+  """
 
   def __init__(self, host: str, port: int, user: str, password: str, ssl=True, batch_size=100, dry_run=False):
     self.host = host
@@ -111,14 +122,17 @@ class MailClient(ABC):
 
   @abstractmethod
   def open(self):
+    """Open connection to mail server"""
     pass
 
   @abstractmethod
   def close(self):
+    """Close connection to mail server"""
     pass
 
   @abstractproperty
   def total_messages(self) -> int:
+    """Total number of messages in mailbox"""
     pass
 
   @abstractmethod
@@ -126,6 +140,7 @@ class MailClient(ABC):
     pass
 
   def mark_deleted(self, msg_id: int):
+    """Mark message as deleted"""
     logger.info("mark message %s as deleted", msg_id)
     if not self.dry_run:
       self._mark_deleted(str(msg_id))
@@ -135,6 +150,7 @@ class MailClient(ABC):
     pass
 
   def flush(self):
+    """Flush deleted messages"""
     logger.info("flushing")
     if not self.dry_run:
       self._flush()
@@ -144,6 +160,11 @@ class MailClient(ABC):
     pass
 
   def fetch_message(self, msg_id: int=1, headeronly=False):
+    """Fetch message
+
+    :param int msg_id: message id
+    :headeronly bool: fetch only header
+    """
     logger.debug("fetching message %s, headeronly: %s", msg_id, headeronly)
     return Message(msg_id, self._fetch_message(msg_id, headeronly=headeronly))
 
@@ -152,6 +173,12 @@ class MailClient(ABC):
     msg_id_end: int,
     headeronly=False,
   ) -> Generator[Message, None, None]:
+    """Fetch messages
+    
+    :param int|list msg_id: message id or list of message ids
+    :param int msg_id_end: optional, end message id
+    :param bool headeronly: fetch only header
+    """
     logger.debug("fetching messages %s - %s headeronly: %s", msg_id, msg_id_end, headeronly)
     if isinstance(msg_id, list):
       for i in msg_id:
@@ -162,6 +189,11 @@ class MailClient(ABC):
         yield Message(i, self._fetch_message(i, headeronly=headeronly))
 
   def fetch_messages_after(self, dt: datetime, headeronly=True) -> Generator[Message, None, None]:
+    """Fetch messages after date
+    
+    :param datetime dt: date
+    :param bool headeronly: fetch only header
+    """
     for msg in self.fetch_messages(self.total_messages, 1, headeronly=headeronly):
       if msg.date < dt:
         logger.debug("stop fetching because message %s date %s < %s", msg.msg_id, msg.date, dt)
@@ -171,6 +203,11 @@ class MailClient(ABC):
       yield msg
 
   def fetch_messages_before(self, dt: datetime, headeronly=True) -> Generator[Message, None, None]:
+    """Fetch messages before date
+    
+    :param datetime dt: date
+    :param bool headeronly: fetch only header
+    """
     for msg in self.fetch_messages(1, self.total_messages, headeronly=headeronly):
       if msg.date > dt:
         logger.debug("stop fetching because message %s date %s > %s", msg.msg_id, msg.date, dt)
@@ -180,19 +217,22 @@ class MailClient(ABC):
       yield msg
   
   def mark_deleted_before(self, dt: datetime):
+    """Mark messages before date as deleted """
     for msg in self.fetch_messages_before(dt):
       self.mark_deleted(msg.msg_id)
   
   def mark_deleted_after(self, dt: datetime):
+    """Mark messages after date as deleted"""
     for msg in self.fetch_messages_after(dt):
       self.mark_deleted(msg.msg_id)
   
   def mark_deleted_keep(self, keep:int):
+    """Mark messages as deleted while keeping the last n messages"""
     def batch():
       total = self.total_messages
       msg_id_end = total - keep
-      if msg_id_end > self.batch:
-        msg_id_end = self.batch 
+      if msg_id_end > self.batch_size:
+        msg_id_end = self.batch_size
       if msg_id_end < 1:
         return False
       logger.info(f"total {total}, deleting 1 to {msg_id_end} messages")
@@ -206,5 +246,10 @@ class MailClient(ABC):
       pass
 
   def mark_deleted_all(self):
+    """Mark all messages as deleted"""
     for msg_id in range(1, self.total_messages + 1):
       self.mark_deleted(msg_id)
+
+  def unmark_deleted(self, msg_id: int):
+    """Unmark message as deleted"""
+    self.unmark_deleted(msg_id)

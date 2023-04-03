@@ -33,6 +33,7 @@ class ImapClient(MailClient):
     return self.select(self.mailbox)
 
   def list_mailboxes(self) -> Generator[dict, None, None]:
+    """List mailboxes in the current account"""
     list_response_pattern = re.compile(
       r'\((?P<flags>.*?)\) "(?P<delimiter>.*)" (?P<name>.*)'
     )
@@ -44,6 +45,7 @@ class ImapClient(MailClient):
       yield mailbox
 
   def select(self, mailbox: str) -> int:
+    """Select a mailbox and return the number of messages in it"""
     code, resp = self.client.select('"%s"' % mailbox)
     if code != 'OK':
       raise Exception(resp[0].decode())
@@ -59,6 +61,7 @@ class ImapClient(MailClient):
     return resp[0][1]
 
   def search(self, criterion: str):
+    """Search messages in the current mailbox"""
     code, resp = self.client.search(None, criterion)
     if code != 'OK':
       raise Exception(resp[0].decode())

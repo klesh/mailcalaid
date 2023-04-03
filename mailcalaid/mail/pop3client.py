@@ -30,6 +30,7 @@ class Pop3Client(MailClient):
     return self.client.stat()[0]
 
   def total_size(self) -> int:
+    """Total size of all messages in mailbox"""
     return self.client.stat()[1]
 
   def _fetch_message(self, msg_id:int, headeronly: bool) -> bytes:
@@ -45,4 +46,5 @@ class Pop3Client(MailClient):
     self.open()
 
   def unmark_all_deleted(self):
+    """Unmark all deleted messages"""
     self.client.rset()
