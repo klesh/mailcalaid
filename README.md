@@ -1,18 +1,21 @@
 # mailcalaid
 
-A Python library to provide aid to accomplish tasks related to mail and calendar.
+A Python library/commands to provide aid to accomplish tasks related to mail and calendar.
 
 
-# installation
+# Installation
 
 ```
 pip install git+https://github.com/klesh/mailcalaid.git
 ```
 
 
-# usage
+# Usage
 
-## maidaid
+
+## CLI Tool
+
+### maidaid
 
 Manage your remote emails
 
@@ -84,7 +87,7 @@ py -m mailcalaid.mailid --mailbox "mailboxname" <command> ...
 ```
 
 
-## mail2bot
+### mail2bot
 
 Monitor new messages that meet certain criterions and send http requests to your bot hook (Slack/Feishu, etc.)
 
