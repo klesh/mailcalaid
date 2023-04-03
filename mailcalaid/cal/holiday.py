@@ -1,6 +1,5 @@
 from typing import Dict, Tuple, Generator
-from datetime import date, datetime
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, timezone, timedelta, tzinfo
 from abc import ABC, abstractmethod, abstractproperty
 from functools import cached_property
 from urllib import request
@@ -11,6 +10,12 @@ import os
 logger = logging.getLogger(__name__)
 
 class HolidayBook(ABC):
+  """ Holiday Book for a country
+
+  :param str cache_dir: cache directory for caching holiday data
+  :param int workhours_start: start hour of work hours
+  :param int workhours_end: end hour of work hours
+  """
   holidays: Dict[date, Tuple[bool, str]]
   cache_dir: str
   workhours_start: int
@@ -20,7 +25,9 @@ class HolidayBook(ABC):
     self.holidays = dict()
     self.cache_dir = cache_dir
     os.makedirs(cache_dir, exist_ok=True)
-    s = self.timezone.replace("/", "-")
+    s = self.sanitize_filename(self.country)
+    if not s:
+      raise Exception("country name is empty")
     self.cache_file = os.path.join(cache_dir, f"{s}.json")
     if os.path.exists(self.cache_file):
       try:
@@ -30,22 +37,33 @@ class HolidayBook(ABC):
     self.workhours_start = workhours_start
     self.workhours_end = workhours_end
 
-  @abstractproperty
-  def timezone(self) -> str:
-    pass
+  @staticmethod
+  def sanitize_filename(filename: str) -> str:
+    return "".join(c for c in filename if c.isalnum() or c in (" ", ".", "_", "-"))
 
   @abstractmethod
   def load_year(self, year: int) -> Generator[Tuple[date, bool, str], None, None]:
+    """Load holidays from some APIs for a given year
+    """
     pass
 
-  @cached_property
-  def tzinfo(self):
-    return ZoneInfo(self.timezone)
+  @abstractproperty
+  def timezone(self) -> tzinfo:
+    """Timezone
+    """
+    pass
+
+  @abstractproperty
+  def country(self) -> str:
+    """Country code"""
+    pass
 
   def mark(self, d: date, is_holiday: bool, name: str):
+    """Mark a date as holiday or not"""
     self.holidays[d] = (is_holiday, name)
 
   def check(self, dt: date|datetime=None) -> Tuple[bool, str]:
+    """Check if a date is holiday or not"""
     d = self.normalize_date(dt)
     self.ensure_year(d.year)
     mark = self.holidays.get(d.date())
@@ -56,20 +74,24 @@ class HolidayBook(ABC):
     return is_weekend, name
 
   def is_workhour(self, dt: date|datetime=None) -> bool:
+    """Check if a datetime is work hour or not"""
     dt = self.normalize_date(dt)
     is_holiday, _ = self.check(dt)
     return not is_holiday and self.workhours_start <= dt.hour < self.workhours_end
 
   def normalize_date(self, dt: date | datetime) -> datetime:
-    if isinstance(dt, date):
-      dt = datetime(dt.year, dt.month, dt.day, tzinfo=self.tzinfo)
+    """Normalize a date or datetime to a datetime with timezone
+    timezone would be converted if given datetime has a different timezone to this book"""
     if isinstance(dt, datetime):
-      dt = dt.astimezone(self.tzinfo)
+      dt = dt.astimezone(self.timezone)
+    elif isinstance(dt, date):
+      dt = datetime(dt.year, dt.month, dt.day, tzinfo=self.timezone)
     if dt is None:
       dt = datetime.now()
     return dt
 
   def ensure_year(self, year):
+    """Ensure holiday data for a given year is loaded, if not, load it from API"""
     for d in self.holidays.keys():
       if d.year == year:
         return
@@ -79,27 +101,34 @@ class HolidayBook(ABC):
     self.save()
 
   def save(self):
+    """Save holiday data to cache file"""
     holidays = dict()
     for d, mark in self.holidays.items():
       holidays[d.isoformat()] = mark
-    with open(self.cache_file, "w") as f:
+    with open(self.cache_file, "w", encoding="utf8") as f:
       json.dump(holidays, f, indent=2, ensure_ascii=False)
 
   def load(self):
-      with open(self.cache_file, "r") as f:
-        holidays = json.load(f)
-        for d, mark in holidays.items():
-          self.holidays[date.fromisoformat(d)] = tuple(mark)
+    """Load holiday data from cache file"""
+    with open(self.cache_file, "r", encoding="utf8") as f:
+      holidays = json.load(f)
+      for d, mark in holidays.items():
+        self.holidays[date.fromisoformat(d)] = tuple(mark)
 
 
 class ChinaHolidayBook(HolidayBook):
+  """China holiday book based on Timor API"""
 
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
 
+  @cached_property
+  def timezone(self) -> tzinfo:
+    return timezone(timedelta(hours=8), "CST")
+
   @property
-  def timezone(self):
-    return "Asia/Shanghai"
+  def country(self) -> str:
+    return "China"
 
   def load_year(self, year: int) -> Generator[Tuple[date, bool, str], None, None]:
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0'}
@@ -111,15 +140,66 @@ class ChinaHolidayBook(HolidayBook):
         yield date.fromisoformat(item["date"]), item["holiday"], item["name"]
 
 
+class NagerDateHolidayBook(HolidayBook):
+  """Based on NagareDate API
+  Supported Countries: https://date.nager.at/Country
+
+  .. code-block:: text
+    us_holiday_book = NagerDateHolidayBook(timedelta(hours=-7), "US", "cache")
+    usd = datetime(2023, 1, 16, 0, 0, 0, 0, us_holiday_book.timezone)
+    cnd = datetime(2023, 1, 16, 0, 0, 0, 0, cn_holiday_book.timezone)
+    print("usa ", usd, ":  is_holiday, name = ", us_holiday_book.check(usd))
+    # usa  2023-01-16 00:00:00-07:00 :  is_holiday, name =  (True, 'Martin Luther King, Jr. Day')
+    print("usa ", cnd, ":  is_holiday, name = ", us_holiday_book.check(cnd))
+    # usa  2023-01-16 00:00:00+08:00 :  is_holiday, name =  (True, 'weekend')
+
+  :param utc_offset: UTC offset
+  :param country_code: country code, see https://date.nager.at/Country
+  """
+
+  utc_offset: timedelta
+  country_code: str
+
+  def __init__(self, utc_offset: timedelta, country_code: str, *args, **kwargs):
+    self.utc_offset = utc_offset
+    self.country_code = country_code
+    super().__init__(*args, **kwargs)
+
+  @cached_property
+  def timezone(self):
+    return timezone(self.utc_offset, self.country_code)
+
+  @property
+  def country(self):
+    return self.country_code
+
+  def load_year(self, year: int) -> Generator[Tuple[date, bool, str], None, None]:
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:77.0) Gecko/20100101 Firefox/77.0'}
+    req = request.Request(f"https://date.nager.at/api/v3/publicholidays/{year}/{self.country_code}", headers=headers)
+
+    with request.urlopen(req) as res:
+      data = json.load(res)
+      for item in data:
+        yield date.fromisoformat(item["date"]), True, item["name"]
+
+
 
 if __name__ == "__main__":
-  # cn_holiday_book = HolidayBook("Asia/Shanghai")
-  # cn_holiday_book.mark(date(2021, 1, 1), True, "元旦")
-  # print(cn_holiday_book.check(datetime(2023,1,1,0,0,0, tzinfo=ZoneInfo("Asia/Shanghai")))) 
-  # print(cn_holiday_book.check(datetime(2023,1,1,8,0,0, tzinfo=ZoneInfo("America/Los_Angeles")))) 
   logging.basicConfig(format='[%(asctime)s] %(name)s: %(message)s', level=logging.INFO)
-  cn_holiday_book = ChinaHolidayBook("cache")
-  print(cn_holiday_book.check())
-  print(cn_holiday_book.is_workhour())
-
+  cn_holiday_book = ChinaHolidayBook("config/cache")
+  us_holiday_book = NagerDateHolidayBook(timedelta(hours=-7), "US", "config/cache")
+  print("cn_holiday_book tz:", cn_holiday_book.timezone.utcoffset(datetime.now()))
+  print("us_holiday_book tz:", us_holiday_book.timezone.utcoffset(datetime.now()))
+  print("china today:  is_holiday, name = ", cn_holiday_book.check())
+  print("china now:  is_workhour = ", cn_holiday_book.is_workhour())
+  print("usa today:  is_holiday, name = ", us_holiday_book.check())
+  usd = datetime(2023, 1, 16, 0, 0, 0, 0, us_holiday_book.timezone)
+  cnd = datetime(2023, 1, 16, 0, 0, 0, 0, cn_holiday_book.timezone)
+  print("usa ", usd, ":  is_holiday, name = ", us_holiday_book.check(usd))
+  print("usa ", cnd, ":  is_holiday, name = ", us_holiday_book.check(cnd))
+  print("usa now:  is_workhour = ", us_holiday_book.is_workhour())
+  usd = datetime(2023, 4, 7, 0, 0, 0, 0, us_holiday_book.timezone)
+  cnd = datetime(2023, 4, 7, 0, 0, 0, 0, cn_holiday_book.timezone)
+  print("usa ", usd, ":  is_holiday, name = ", us_holiday_book.check(usd))
+  print("usa ", cnd, ":  is_holiday, name = ", us_holiday_book.check(cnd))
   
