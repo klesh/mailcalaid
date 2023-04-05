@@ -13,6 +13,29 @@ pip install git+https://github.com/klesh/mailcalaid.git
 # Usage
 
 
+## Libraries
+
+### holiday module
+
+```python
+from datetime import timedelta, datetime
+from mailcalaid.cal.holiday import NagerDateHolidayBook
+
+us_holiday_book = NagerDateHolidayBook(timedelta(hours=-7), "US")
+print("usa today:  is_holiday, name = ", us_holiday_book.check())
+usd = datetime(2023, 1, 16, 0, 0, 0, 0, us_holiday_book.timezone)
+print("usa ", usd, ":  is_holiday, name = ", us_holiday_book.check(usd))
+# usa  2023-01-16 00:00:00-07:00 :  is_holiday, name =  (True, 'Martin Luther King, Jr. Day')
+print("usa ", usd, ":  is_workhour = ", us_holiday_book.is_workhour(usd))
+# usa  2023-01-16 00:00:00-07:00 :  is_workhour =  False
+usd = datetime(2023, 4, 5, 9, 0, 0, 0, us_holiday_book.timezone)
+print("usa ", usd, ":  is_holiday, name = ", us_holiday_book.check(usd))
+# usa  2023-04-05 09:00:00-07:00 :  is_holiday, name =  (False, '')
+print("usa ", usd, ":  is_workhour = ", us_holiday_book.is_workhour(usd))
+# usa  2023-04-05 09:00:00-07:00 :  is_workhour =  True
+```
+
+
 ## CLI Tool
 
 ### maidaid
