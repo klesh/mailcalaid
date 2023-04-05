@@ -92,8 +92,8 @@ class HolidayBook(ABC):
     """Check if a datetime is work hour or not"""
     dt = self.normalize_date(dt)
     is_holiday, _ = self.check(dt)
-    start = datetime.combine(dt.date(), self.workhours_start)
-    end = datetime.combine(dt.date(), self.workhours_end) 
+    start = datetime.combine(dt.date(), self.workhours_start, tzinfo=self.timezone)
+    end = datetime.combine(dt.date(), self.workhours_end, tzinfo=self.timezone) 
     if extend:
       start -= extend
       end += extend
