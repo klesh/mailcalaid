@@ -1,0 +1,24 @@
+[project]
+name="mailcalaid"
+version="1.0.0"
+authors=[
+  { name="Klesh Wong", email="klesh@qq.com" },
+]
+description = "Start selling to enterprise customers with just a few lines of code."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: BSD",
+]
+
+[project.urls]
+"Documentation" = "https://mailcalaid.readthedocs.io/en/latest/"
+"Source Code" = "https://github.com/klesh/mailcalaid"
+"Issue Tracker" = "https://github.com/klesh/mailcalaid/issues"

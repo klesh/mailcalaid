@@ -2,13 +2,14 @@
 Holiday
 """
 from typing import Dict, Tuple, Generator
-from datetime import date, datetime, timezone, timedelta, tzinfo
+from datetime import date, datetime, timezone, time,timedelta, tzinfo
 from abc import ABC, abstractmethod, abstractproperty
 from functools import cached_property
 from urllib import request
 import json
 import logging
 import os
+from mailcalaid.common import get_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,17 @@ class HolidayBook(ABC):
   """
   holidays: Dict[date, Tuple[bool, str]]
   cache_dir: str
-  workhours_start: int
-  workhours_end: int
+  workhours_start: time
+  workhours_end: time
 
-  def __init__(self, cache_dir:str, workhours_start:int=9, workhours_end:int=18):
+  def __init__(
+    self,
+    cache_dir:str="",
+    workhours_start:time=time(hour=9),
+    workhours_end:time=time(hour=18),
+  ):
+    if not cache_dir:
+      cache_dir = os.path.join(get_config_dir(), "holiday")
     self.holidays = dict()
     self.cache_dir = cache_dir
     os.makedirs(cache_dir, exist_ok=True)
@@ -76,11 +84,20 @@ class HolidayBook(ABC):
     name = "weekend" if is_weekend else ""
     return is_weekend, name
 
-  def is_workhour(self, dt: date|datetime=None) -> bool:
+  def is_holiday(self, dt: date|datetime=None) -> bool:
+    is_holiday, _ = self.check(dt)
+    return is_holiday
+
+  def is_workhour(self, dt: date|datetime=None, extend:timedelta=None) -> bool:
     """Check if a datetime is work hour or not"""
     dt = self.normalize_date(dt)
     is_holiday, _ = self.check(dt)
-    return not is_holiday and self.workhours_start <= dt.hour < self.workhours_end
+    start = datetime.combine(dt.date(), self.workhours_start)
+    end = datetime.combine(dt.date(), self.workhours_end) 
+    if extend:
+      start -= extend
+      end += extend
+    return not is_holiday and start <= dt < end
 
   def normalize_date(self, dt: date | datetime) -> datetime:
     """Normalize a date or datetime to a datetime with timezone
@@ -102,6 +119,22 @@ class HolidayBook(ABC):
     for d, is_holiday, name in self.load_year(year):
       self.mark(d, is_holiday, name)
     self.save()
+
+  def next_workday(self, dt: date|datetime=None) -> datetime:
+    """Get next workday"""
+    dt = self.normalize_date(dt)
+    while True:
+      dt += timedelta(days=1)
+      if not self.is_holiday(dt):
+        return dt.date()
+
+  def latest_workday(self, dt: date|datetime=None) -> datetime:
+    """Get latest workday"""
+    dt = self.normalize_date(dt)
+    while True:
+      if not self.is_holiday(dt):
+        return dt.date()
+      dt -= timedelta(days=1)
 
   def save(self):
     """Save holiday data to cache file"""
@@ -189,8 +222,8 @@ class NagerDateHolidayBook(HolidayBook):
 
 if __name__ == "__main__":
   logging.basicConfig(format='[%(asctime)s] %(name)s: %(message)s', level=logging.INFO)
-  cn_holiday_book = ChinaHolidayBook("config/cache")
-  us_holiday_book = NagerDateHolidayBook(timedelta(hours=-7), "US", "config/cache")
+  cn_holiday_book = ChinaHolidayBook()
+  us_holiday_book = NagerDateHolidayBook(timedelta(hours=-7), "US")
   print("cn_holiday_book tz:", cn_holiday_book.timezone.utcoffset(datetime.now()))
   print("us_holiday_book tz:", us_holiday_book.timezone.utcoffset(datetime.now()))
   print("china today:  is_holiday, name = ", cn_holiday_book.check())
@@ -205,4 +238,10 @@ if __name__ == "__main__":
   cnd = datetime(2023, 4, 7, 0, 0, 0, 0, cn_holiday_book.timezone)
   print("usa ", usd, ":  is_holiday, name = ", us_holiday_book.check(usd))
   print("usa ", cnd, ":  is_holiday, name = ", us_holiday_book.check(cnd))
-  
+  cnd = datetime(2023, 4, 7, 6, 0, 0, 0, cn_holiday_book.timezone)
+  print("usa ", cnd, ":  is_workhours(extend=2) = ", cn_holiday_book.is_workhour(extend=timedelta(hours=2)))
+  cnd = date(2023, 4, 4)
+  print("latest workday of", cnd, "is", cn_holiday_book.latest_workday(cnd))
+  cnd = date(2023, 4, 5)
+  print("latest workday of", cnd, "is", cn_holiday_book.latest_workday(cnd))
+  print("next workday of", cnd, "is", cn_holiday_book.next_workday(cnd))

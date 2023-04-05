@@ -128,7 +128,7 @@ def stateful_checkmail():
     checkmail(previous_started_at)
     state_config["previous_started_at"] = started_at.strftime(config_datetime_fmt)
     if not dry_run:
-      with open(state_file, "w") as f:
+      with open(state_file, "w", encoding="utf8") as f:
         state.write(f)
     logger.info("done checking new mails, next since would be %s", started_at)
   except Exception:
@@ -146,9 +146,9 @@ from mailcalaid.cal.holiday import ChinaHolidayBook
 cn_holiday_book=None
 if not dry_run:
   cn_holiday_book = ChinaHolidayBook(
-    cache_dir,
-    workhours_start=workhours_start,
-    workhours_end=workhours_end,
+    cache_dir=cache_dir,
+    workhours_start=timedelta(hours=workhours_start),
+    workhours_end=timedelta(hours=workhours_end),
   )
 while True:
   if dry_run or cn_holiday_book.is_workhour():

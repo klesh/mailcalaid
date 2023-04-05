@@ -7,11 +7,19 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   mailcalaid.mail
    mailcalaid.cal
+   mailcalaid.mail
 
 Submodules
 ----------
+
+mailcalaid.common module
+------------------------
+
+.. automodule:: mailcalaid.common
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 mailcalaid.mail2bot module
 --------------------------
