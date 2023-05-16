@@ -107,7 +107,7 @@ class HolidayBook(ABC):
     elif isinstance(dt, date):
       dt = datetime(dt.year, dt.month, dt.day, tzinfo=self.timezone)
     if dt is None:
-      dt = datetime.now()
+      dt = datetime.now().astimezone()
     return dt
 
   def ensure_year(self, year):

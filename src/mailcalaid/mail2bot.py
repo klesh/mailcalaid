@@ -54,6 +54,7 @@ if ignore_realnames:
 
 bothook_config = config["bothook"]
 link_re = re.compile(bothook_config["link_re"], re.M)
+link_idx = bothook_config.getint("link_idx", fallback=0)
 bothook_url=bothook_config["bothook_url"]
 bothook_headers = {}
 bothook_headers_config = config["bothook request headers"]
@@ -66,8 +67,8 @@ bothook_body_tpl =  Template(bothook_body_tpl)
 def notify_bothook(detail):
   subject = detail.subject.replace("\r\n", "")
   localdate = datetime.fromtimestamp(detail.date.timestamp())
-  link = link_re.search(detail.text)
-  if not link:
+  links = link_re.findall(detail.text)
+  if not links:
     logger.error(f"failed to extract the link:\n{detail.text}")
     return
   realname, fromaddr = detail.sender_addr
@@ -75,7 +76,7 @@ def notify_bothook(detail):
     subject=subject,
     subject_json=json.dumps(subject),
     date=localdate,
-    link=link.group().strip(),
+    link=links[link_idx],
     realname=realname,
     fromaddr=fromaddr,
   ))
@@ -86,6 +87,9 @@ def notify_bothook(detail):
   )
   for header in bothook_headers:
     req.add_header(header, bothook_headers[header])
+  if dry_run:
+    logger.info(f"POST {bothook_url} with body:\n{body}")
+    return
   with request.urlopen(req) as res:
     logger.info(f"notify for {subject} status: {res.status}")
 
@@ -107,10 +111,7 @@ def checkmail(previous_started_at: datetime) -> datetime:
       continue
     if realname in ignore_realnames:
       continue
-    if dry_run:
-      logger.info(f"would notify for {msg.date} {msg.subject}")
-    else:
-      notify_bothook(client.fetch_message(msg.msg_id))
+    notify_bothook(client.fetch_message(msg.msg_id))
   client.close()
 
 state_config = state["state"]
