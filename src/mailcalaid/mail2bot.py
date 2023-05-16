@@ -1,12 +1,12 @@
 import json
 import re
-import time
+from time import sleep
 import logging
 import os
 from urllib import request
 from string import Template
-from datetime import datetime, timedelta
-from mailcalaid.mail import MailClient, ImapClient, Pop3Client
+from datetime import datetime, time, timedelta
+from mailcalaid.mail import ImapClient, Pop3Client
 from configparser import ConfigParser
 
 logging.basicConfig(format='[%(asctime)s] %(name)s: %(message)s', level=logging.INFO)
@@ -34,6 +34,8 @@ interval = general_config.getint("interval", 60)
 workhours_start = general_config.getint("workhours_start", 9)
 workhours_end = general_config.getint("workhours_end", 18)
 cache_dir = general_config.get("cahce_dir", "cache")
+if not cache_dir.startswith("/") and config_dir:
+  cache_dir = os.path.join(config_dir, cache_dir)
 
 server_config = config["imap"]
 proto=server_config["proto"]
@@ -148,10 +150,10 @@ cn_holiday_book=None
 if not dry_run:
   cn_holiday_book = ChinaHolidayBook(
     cache_dir=cache_dir,
-    workhours_start=timedelta(hours=workhours_start),
-    workhours_end=timedelta(hours=workhours_end),
+    workhours_start=time(hour=workhours_start),
+    workhours_end=time(hour=workhours_end),
   )
 while True:
   if dry_run or cn_holiday_book.is_workhour():
     stateful_checkmail()
-  time.sleep(interval)
+  sleep(interval)
