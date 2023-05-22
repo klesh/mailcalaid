@@ -72,6 +72,9 @@ class Message:
   def date(self):
     d = self.message["Date"]
     if not d:
+      d = self.message["Received"].split(";")[1].strip()
+    if not d:
+      logger.warning("no date header found\n%s", self.msg)
       return None
     try:
       d = email.utils.parsedate_to_datetime(decode_header(d))

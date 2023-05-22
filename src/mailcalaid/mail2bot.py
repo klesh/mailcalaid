@@ -90,7 +90,8 @@ def notify_bothook(detail):
   for header in bothook_headers:
     req.add_header(header, bothook_headers[header])
   if dry_run:
-    logger.info(f"POST {bothook_url} with body:\n{body}")
+    # logger.info(f"POST {bothook_url} with body:\n{body}")
+    logger.info("notify for %s %s", localdate, subject)
     return
   with request.urlopen(req) as res:
     logger.info(f"notify for {subject} status: {res.status}")
