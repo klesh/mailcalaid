@@ -44,6 +44,7 @@ port=int(server_config["port"])
 user=server_config["user"]
 passwd=server_config["passwd"]
 ssl=server_config.getboolean("ssl", True)
+timeout=server_config.getboolean("timeout", 60)
 
 filter_config = config["filter"]
 subject_keyword = filter_config.get("subject_keyword")
@@ -104,6 +105,7 @@ def checkmail(previous_started_at: datetime) -> datetime:
     user=user,
     password=passwd,
     ssl=ssl,
+    timeout=timeout,
   )
   client = ImapClient(**kwargs) if proto=="imap" else Pop3Client(**kwargs)
   for msg in client.fetch_messages_after(previous_started_at, headeronly=True):

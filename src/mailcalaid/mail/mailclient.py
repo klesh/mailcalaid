@@ -111,7 +111,7 @@ class MailClient(ABC):
   :param bool dry_run: dry run mode
   """
 
-  def __init__(self, host: str, port: int, user: str, password: str, ssl=True, batch_size=100, dry_run=False):
+  def __init__(self, host: str, port: int, user: str, password: str, ssl=True, batch_size=100, dry_run=False, timeout=60):
     self.host = host
     self.port = port
     self.user = user
@@ -119,6 +119,7 @@ class MailClient(ABC):
     self.ssl = ssl
     self.batch_size = batch_size
     self.dry_run = dry_run
+    self.timeout = timeout
     if self._fetch_message is None and self._fetch_messages is None:
       raise Exception("either _fetch_messages or _fetch_message must be implemented")
     self.open()

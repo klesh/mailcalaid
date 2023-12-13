@@ -20,6 +20,7 @@ class ImapClient(MailClient):
       self.client = imaplib.IMAP4_SSL(host=self.host, port=self.port)
     else:
       self.client = imaplib.IMAP4(host=self.host, port=self.port)
+    self.client.socket().settimeout(self.timeout)
     code, resp = self.client.login(self.user, self.password)
     if code != 'OK':
       raise Exception(resp[0].decode())

@@ -15,9 +15,9 @@ class Pop3Client(MailClient):
 
   def open(self):
     if self.ssl:
-      pop3client = poplib.POP3_SSL(host=self.host, port=self.port)
+      pop3client = poplib.POP3_SSL(host=self.host, port=self.port, timeout=self.timeout)
     else:
-      pop3client = poplib.POP3(host=self.host, port=self.port)
+      pop3client = poplib.POP3(host=self.host, port=self.port, timeout=self.timeout)
     pop3client.user(self.user)
     pop3client.pass_(self.password)
     self.client = pop3client
