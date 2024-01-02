@@ -66,7 +66,7 @@ class Message:
 
   @cached_property
   def subject(self):
-    return decode_header(self.message["Subject"] or "").replace("\r\n", "")
+    return decode_header(self.message["Subject"]).replace("\r\n", "")
 
   @cached_property
   def date(self):
@@ -89,7 +89,7 @@ class Message:
 def decode_header(header):
   # print("header", type(header), header)
   if not header:
-    return
+    return ""
   value, charset = email.header.decode_header(header)[0]
   if isinstance(value, bytes):
     if charset:
