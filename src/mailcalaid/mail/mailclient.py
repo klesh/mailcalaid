@@ -66,7 +66,7 @@ class Message:
 
   @cached_property
   def subject(self):
-    return decode_header(self.message["Subject"]).replace("\r\n", "")
+    return decode_header(self.message["Subject"] or "").replace("\r\n", "")
 
   @cached_property
   def date(self):

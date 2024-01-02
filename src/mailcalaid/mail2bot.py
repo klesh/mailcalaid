@@ -68,7 +68,7 @@ bothook_body_tpl = bothook_config["bothook_body"]
 bothook_body_tpl =  Template(bothook_body_tpl)
 
 def notify_bothook(detail):
-  subject = detail.subject.replace("\r\n", "")
+  subject = detail.subject
   localdate = datetime.fromtimestamp(detail.date.timestamp())
   links = link_re.findall(detail.text)
   if not links:
