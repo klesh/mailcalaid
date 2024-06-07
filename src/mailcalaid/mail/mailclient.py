@@ -93,7 +93,11 @@ def decode_header(header):
   value, charset = email.header.decode_header(header)[0]
   if isinstance(value, bytes):
     if charset:
-      value = value.decode(charset)
+      try:
+        value = value.decode(charset)
+      except Exception as e:
+        logger.warning("failed to decode header %s: %s", header, e)
+        value = value.decode("utf-8", errors="replace")
     else:
       value = str(value)
   return value
